@@ -1,0 +1,18 @@
+{
+  "name": "microfrontend-demo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd react-mf && npm install && cd ../vue-mf && npm install && cd ../host && npm install",
+    "dev:react": "cd react-mf && npm run dev",
+    "dev:vue": "cd vue-mf && npm run dev",
+    "dev:host": "cd host && npm run dev",
+    "build:react": "cd react-mf && npm run build",
+    "build:vue": "cd vue-mf && npm run build",
+    "build:host": "cd host && npm run build",
+    "build:all": "npm run build:react && npm run build:vue && npm run build:host",
+    "preview:react": "cd react-mf && npm run preview",
+    "preview:vue": "cd vue-mf && npm run preview",
+    "preview:host": "cd host && npm run preview"
+  }
+}
