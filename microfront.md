@@ -261,6 +261,137 @@ cd host && npm run preview
 4. Создать wrapper если нужен (для не-React фреймворков)
 5. Пересобрать и перезапустить
 
+## Коммуникация между микрофронтендами
+
+### Проблема
+
+При переключении вкладок данные (счётчики) сбрасываются, потому что компоненты **размонтируются**:
+
+```jsx
+{(activeTab === 'all' || activeTab === 'react') && (
+  <ReactCounter />
+)}
+```
+
+Когда `activeTab` меняется — компонент удаляется из DOM и создаётся заново с начальным состоянием.
+
+### Способы коммуникации
+
+#### 1. Custom Events (Browser API)
+
+```js
+// React отправляет
+window.dispatchEvent(new CustomEvent('counter:change', { detail: { count: 5 } }))
+
+// Vue слушает
+window.addEventListener('counter:change', (e) => {
+  console.log(e.detail.count) // 5
+})
+```
+
+**Плюсы:** Просто, нативно, без зависимостей
+**Минусы:** Нет типизации, сложно отслеживать
+
+#### 2. Shared State в Window
+
+```js
+// Общее хранилище
+window.__SHARED_STATE__ = { count: 0 }
+
+// React меняет
+window.__SHARED_STATE__.count = 5
+
+// Vue читает
+const count = window.__SHARED_STATE__.count
+```
+
+**Плюсы:** Очень просто
+**Минусы:** Нет реактивности, нужно вручную обновлять UI
+
+#### 3. Props через Host
+
+```
+Host (хранит state)
+  ├── ReactCounter (получает count, onChange)
+  └── VueCounter (получает count, onChange)
+```
+
+```jsx
+// Host
+const [count, setCount] = useState(0)
+<ReactCounter count={count} onChange={setCount} />
+<VueCounter count={count} onChange={setCount} />
+```
+
+**Плюсы:** Чистая архитектура, React-way
+**Минусы:** Тесная связь с Host
+
+#### 4. Event Bus (Pub/Sub)
+
+```js
+// shared/eventBus.js
+const listeners = {}
+
+export const emit = (event, data) => {
+  listeners[event]?.forEach(fn => fn(data))
+}
+
+export const on = (event, fn) => {
+  listeners[event] = listeners[event] || []
+  listeners[event].push(fn)
+}
+```
+
+```js
+// React
+emit('counter:update', 5)
+
+// Vue
+on('counter:update', (count) => { ... })
+```
+
+**Плюсы:** Слабая связанность
+**Минусы:** Сложнее дебажить
+
+#### 5. localStorage + Storage Event
+
+```js
+// React пишет
+localStorage.setItem('count', '5')
+
+// Vue слушает изменения
+window.addEventListener('storage', (e) => {
+  if (e.key === 'count') {
+    console.log(e.newValue) // '5'
+  }
+})
+```
+
+**Плюсы:** Персистентность, работает между вкладками
+**Минусы:** Только строки, не работает в одной вкладке
+
+#### 6. URL / Query Params
+
+```
+http://localhost:3000?count=5
+```
+
+**Плюсы:** Shareable, bookmarkable
+**Минусы:** Только для простых данных
+
+### Сравнение способов
+
+| Способ | Сложность | Реактивность | Изоляция |
+|--------|-----------|--------------|----------|
+| Custom Events | Низкая | Нет | Высокая |
+| Window object | Низкая | Нет | Низкая |
+| Props через Host | Средняя | Да | Средняя |
+| Event Bus | Средняя | Нет | Высокая |
+| localStorage | Низкая | Частичная | Высокая |
+| URL params | Низкая | Нет | Высокая |
+
+Самый популярный подход — **Custom Events** или **Event Bus** для слабой связанности между микрофронтендами.
+
 ## Полезные ссылки
 
 - [Vite Plugin Federation](https://github.com/originjs/vite-plugin-federation)
